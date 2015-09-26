@@ -1,16 +1,17 @@
 package packet
 import (
 	"bytes"
+	"encoding/binary"
 )
 
 const (
 	/*packet types*/
 	/*no iota because opcode is defined*/
-	RRQ = "01"
-	WRQ = "02"
-	DATA = "03"
-	ACK = "04"
-	ERROR = "05"
+	RRQ = 1
+	WRQ = 2
+	DATA = 3
+	ACK = 4
+	ERROR = 5
 	
 	/*header types*/
 	LOCAL = iota
@@ -25,20 +26,21 @@ const (
 	MAIL = "MAIL"
 	
 )
-var ErrorCodes map[int]string
+
+var ErrorCodes map[uint16]string
 
 func Init(){
-	ErrorCodes = map[int]string{
-	0 : "Not defined, see error message (if any).",
-	1 : "File not found.",
-    2 : "Access violation.",
-    3 : "Disk full or allocation exceeded.",
-    4 : "Illegal TFTP operation.",
-    5 : "Unknown transfer ID.",
-    6 : "File already exists.",
-    7 : "No such user.",
-}
+	ErrorCodes = map[uint16]string{
+		uint16(0) : "Not defined, see error message (if any).",
+		uint16(1) : "File not found.",
+		uint16(2) : "Access violation.",
+		uint16(3) : "Disk full or allocation exceeded.",
+		uint16(4) : "Illegal TFTP operation.",
+		uint16(5) : "Unknown transfer ID.",
+		uint16(6) : "File already exists.",
+		uint16(7) : "No such user.",
 	}
+}
 	
 /* how do headers look?
  * LOCAL: you choose. 
@@ -51,71 +53,93 @@ func Init(){
 //type Fields map[string]string
 //headers map[int]Fields
 
+//todo:
+//1) init for all structs
+//2) ToBytes for all structs
+//3) fromBytes for all structs
+
+type Packet interface{
+	ToBytes() []byte
+}
+
+type AbstractPacket struct{
+	PacketType int
+}
+func (p AbstractPacket) HeadersToBytes() []byte{
+	//todo: implement!
+	return []byte{}
+}
+func (p AbstractPacket) ToBytes() []byte{
+	var buffer bytes.Buffer
+	buffer.Write(p.HeadersToBytes())
+	buffer.Write([]byte{0,byte(p.PacketType)})
+	return buffer.Bytes()
+}
+
+
 type ReadWritePacket struct{
-  PacketType string
+  AbstractPacket
   FileName string
   Mode string
 }
+func (p ReadWritePacket) ToBytes() []byte{
+  var buffer bytes.Buffer
+  buffer.Write(p.AbstractPacket.ToBytes())
+  buffer.WriteString(p.FileName)
+  buffer.WriteByte(byte(0))
+  buffer.WriteString(p.Mode)
+  buffer.WriteByte(byte(0))
+  return buffer.Bytes()
+}
 
 type DataPacket struct{
-  PacketType string
+  AbstractPacket
   BlockNum uint16
   Data []byte 
 }
+func (p DataPacket) ToBytes() []byte{
+  var buffer bytes.Buffer
+  buffer.Write(p.AbstractPacket.ToBytes())
+  blockNumAsTwoBytes := make([]byte, 2)
+  binary.LittleEndian.PutUint16(blockNumAsTwoBytes, uint16(p.BlockNum))
+  buffer.Write(blockNumAsTwoBytes)
+  buffer.Write(p.Data)
+  return buffer.Bytes()
+}
 
 type AckPacket struct{
-  PacketType string
+  AbstractPacket
   BlockNum uint16
+}
+func (p AckPacket) ToBytes() []byte{
+  var buffer bytes.Buffer
+  buffer.Write(p.AbstractPacket.ToBytes())
+  blockNumAsTwoBytes := make([]byte, 2)
+  binary.LittleEndian.PutUint16(blockNumAsTwoBytes, uint16(p.BlockNum))
+  buffer.Write(blockNumAsTwoBytes)
+  return buffer.Bytes()
 }
 
 type ErrorPacket struct{
-  PacketType string
-  ErrorCode string
+  AbstractPacket
+  ErrorCode uint16
   ErrMsg string
 }
-
-func ReadWritePacketToBytes(p ReadWritePacket) []byte{
-	var buffer bytes.Buffer
-    //buffer.WriteString(headersToString(p.headers))
-    buffer.WriteString(p.PacketType)
-	buffer.WriteString(p.FileName)
-	buffer.WriteByte(byte(0))
-	buffer.WriteString(p.Mode)
-	buffer.WriteByte(byte(0))
-
-	return buffer.Bytes()
+func (p ErrorPacket) ToBytes() []byte{
+  var buffer bytes.Buffer
+  buffer.Write(p.AbstractPacket.ToBytes())
+  blockNumAsTwoBytes := make([]byte, 2)
+  binary.LittleEndian.PutUint16(blockNumAsTwoBytes, uint16(p.ErrorCode))
+  buffer.Write(blockNumAsTwoBytes)
+  buffer.WriteString(ErrorCodes[p.ErrorCode])
+  buffer.WriteByte(byte(0))
+  return buffer.Bytes()
 }
 
 
-func DataPacketToBytes(p DataPacket) []byte{
-	var buffer bytes.Buffer
-    //buffer.WriteString(headersToString(p.headers))
-    buffer.WriteString(p.PacketType)
-	buffer.WriteByte(byte(p.BlockNum))
-	buffer.Write(p.Data)
-	
-	return buffer.Bytes()
-}
 
-func AckPacketToBytes(p AckPacket) []byte{
-	var buffer bytes.Buffer
-    //buffer.WriteString(headersToString(p.headers))
-    buffer.WriteString(p.PacketType)
-	buffer.WriteByte(byte(p.BlockNum))
-	
-	return buffer.Bytes()
-}
 
-func ErrorPacketToBytes(p ErrorPacket) []byte{
-	var buffer bytes.Buffer
-    //buffer.WriteString(headersToString(p.headers))
-    buffer.WriteString(p.PacketType)
-	buffer.WriteString(p.ErrorCode)
-	buffer.WriteString(p.ErrMsg)
-	buffer.Write([]byte{0})
-	
-	return buffer.Bytes()
-}
+
 //func fieldsToBytes(f* Fields)[]byte{
 	//var buffer bytes.Buffer
 	
@@ -140,5 +164,3 @@ func ErrorPacketToBytes(p ErrorPacket) []byte{
 		////buffer.WriteString(packetType,filename, byte(0), mode, byte(0))
 	////}
 //}
-
-
