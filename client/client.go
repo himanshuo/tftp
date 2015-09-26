@@ -3,8 +3,9 @@ package main
 import (
     "fmt"
     "net"
-    "time"
+    //"time"
     //"strconv"
+    "github.com/himanshuo/tftp/packet"
 )
  
 func CheckError(err error) {
@@ -24,15 +25,15 @@ func main() {
     CheckError(err)
  
     defer Conn.Close()
-    i := 0
-    for {
-        msg := "Himanshu"
-        i++
-        buf := []byte(msg)
-        _,err := Conn.Write(buf)
-        if err != nil {
-            fmt.Println(msg, err)
-        }
-        time.Sleep(time.Second * 1)
+    
+    //for {
+    msg := "Himanshu"
+    dataPacket := packet.DataPacket{packet.DATA, uint16(0xff), []byte("hi")}
+        
+    _,err = Conn.Write(packet.DataPacketToBytes(dataPacket))
+    if err != nil {
+		fmt.Println(msg, err)
     }
+        
+    //}
 }

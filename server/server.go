@@ -13,6 +13,9 @@ func CheckError(err error) {
         os.Exit(0)
     }
 }
+
+
+
  
 func main() {
     /* Lets prepare a address at any address at port 10001*/   
