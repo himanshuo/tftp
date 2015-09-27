@@ -8,7 +8,7 @@ import (
 )
 
 func main(){
-   p := packet.ReadWritePacket{packet.AbstractPacket{packet.RRQ}, "myfile.txt", packet.OCTECT}
+   p := packet.NewWritePacket("myfile.txt")
    fmt.Println(p.ToBytes())
 }
 
