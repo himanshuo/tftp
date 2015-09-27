@@ -7,6 +7,8 @@ import (
     "github.com/himanshuo/tftp/packet"
 )
  
+var storage map[string][]byte // filename -> file contents as []byte
+
 /* A Simple function to verify error */
 func CheckError(err error) {
     if err  != nil {
@@ -15,13 +17,14 @@ func CheckError(err error) {
     }
 }
 
-func storeFile(p packet.Packet){
+func routePacket(p packet.Packet){
 	
 	switch cur := p.(type) {
 		case packet.ReadPacket:
 			fmt.Println("read packet for filename:",string(cur.FileName))
 		case packet.WritePacket:
 			fmt.Println("write packet for filename:",string(cur.FileName))
+			startStorage(cur)
 		case packet.DataPacket:
 			fmt.Println("data packet containing:",string(cur.Data))
 		case packet.AckPacket:
@@ -35,8 +38,9 @@ func storeFile(p packet.Packet){
 		default:
 			fmt.Println("didn't match anytype")
 	}
-	
-	
+}
+
+func startStorage(p packet.WritePacket){
 	
 }
 
@@ -56,7 +60,7 @@ func serve(){
         n,addr,err := ServerConn.ReadFromUDP(buf)
         p := packet.ToPacket(buf[0:n])
         fmt.Println("Received ", p , " from ",addr)
-		storeFile(p)
+		routePacket(p)
 		
         if err != nil {
             fmt.Println("Error: ",err)
