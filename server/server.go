@@ -7,9 +7,33 @@ import (
     "github.com/himanshuo/tftp/packet"
     "math/rand"
 )
- 
-var storage map[string][]byte // filename -> file contents as []byte
-var inProcess map[string][]byte // recieved tid -> file contents
+const MAXDATASIZE = 512
+type File struct {
+	filename string
+	data []byte
+	checksum string
+	length int
+}
+var storage map[string]File // filename -> File
+var inProcess map[uint16]File // recieved tid -> File
+
+/*
+ * to deduplicate:
+ * 
+ *  File: filename, checksum, length, []512 data byte pointers in proper order
+ *  Storage: hash_of_512_byte -> 512 byte
+ * 
+ *  to add a new file to storage, take a hash of each of its 512 byte portions.
+ *  for each hash, check if it exists in storage
+ * 		if hash in storage: do nothing.
+ * 		if hash not in storage: add hash->512bytes into storage 
+ *  
+ *  to get file from storage:
+ *  totalFile = []byte
+ *  for hash in File.512bytepointers:
+ *  	totalFile = append(totalFile, Storage[hash])
+ *  
+ */
 
 /* A Simple function to verify error */
 func CheckError(err error) {
@@ -32,14 +56,26 @@ func handleDataPacket(p packet.DataPacket, conn *net.UDPConn, addr *net.UDPAddr)
 	*/
 
 	//determine which file this packet is for
-	//this is done via header. not done with header code. thus assume for inProcess[0] for now.
-	
+	//this is done via header. not done with header code. thus assume for inProcess[tid=uint16(0)] for now.
+	file := inProcess[uint16(0)]
 	//process this packet into the total bytes for the file
-	//if file is done:
-	//    send done ack
-	//    move from inProcess to storage
-	//if file is not done: 
-	//	  send recieved cur datapacket ack
+	file.data = append(file.data, p.Data)
+	
+	//create ackpacket response
+	ackPacket := packet.NewAckPacket(p.BlockNum)
+	
+	//if last packet 
+	if p.Data < MAXDATASIZE{
+		//move completed file to storage
+		storage[file.filename] = file
+		//remove completed file from inprocess
+		delete(inProcess, file.filename)
+	} 
+	
+	//send ackpacket response
+	_, err := conn.WriteToUDP(ackPacket.ToBytes(), addr)
+	CheckError(err)
+	
 }
 
 
@@ -68,13 +104,13 @@ func routePacket(p packet.Packet, conn *net.UDPConn, addr *net.UDPAddr){
 }
 
 func startStorage(p packet.WritePacket, conn *net.UDPConn, addr *net.UDPAddr){
-	tid := rand.Uint32()
+	tid := rand.Uint16()
 	fmt.Println(tid, "to be used soon once we have headers...")
 	ackPacket := packet.NewAckPacket(uint16(0)) //0 for 0th blocknum
 	_, err := conn.WriteToUDP(ackPacket.ToBytes(), addr)
 	CheckError(err)
 	
-	inProcess = append()
+	inProcess[uint16(0)] = File{filename:p.FileName}
 }
 
 
@@ -104,5 +140,4 @@ func serve(){
  
 func main() {
     serve()
- 
 }
