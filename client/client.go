@@ -6,19 +6,72 @@ import (
     //"strconv"
     "github.com/himanshuo/tftp/packet"
     "flag"
-    "io/ioutil"
+    //"io/ioutil"
+    "bufio"
+    "path/filepath"
+    "os"
 )
  
  
-var filepath = flag.String("filepath", "", "the path (linux) to the file where you want to upload from")
+var pathToFile = flag.String("pathToFile", "", "the path (linux) to the file where you want to upload from")
+const MAXDATASIZE = 512
 
 func CheckError(err error) {
     if err  != nil {
-        fmt.Println("Error: " , err)
+        //fmt.Println("Error: " , err)
+		panic(err)
     }
 }
 
-func SendToServer(filepath string){
+func SendDataPacketsToServer(pathToFile string, Conn *net.UDPConn){
+	//open file for reading
+	f, err := os.Open(pathToFile)
+	CheckError(err)
+	defer f.Close()
+	
+	//create buffer for storing MAXDATASIZE bytes of file at a time
+	buffer := make([]byte, MAXDATASIZE)
+	//reader for reading file into buffer
+	reader := bufio.NewReader(f)
+	
+	//keep track of block num
+	blockNum := uint16(1)
+	for{
+		//read 
+		actualBytesRead, err := reader.Read(buffer)
+		CheckError(err)
+		
+		//store into data packet
+		dataPacket := packet.NewDataPacket(blockNum, buffer)
+		
+		//send data packet
+		_,err = Conn.Write(dataPacket.ToBytes())
+		CheckError(err)
+		
+		p := make([]byte, 2048)
+		_, err = bufio.NewReader(Conn).Read(p)
+		retPacket := packet.ToPacket(p)
+		//make sure response is good with correctly returned ack packet
+		switch cur := retPacket.(type){
+			case packet.AckPacket:
+				fmt.Println("all good for blocknum:", cur.BlockNum)
+			case packet.ErrorPacket:
+				fmt.Println("error!:", cur.ErrMsg)
+			default:
+				fmt.Println("ummm wrong type of packet recieved to confirm data packet sent")
+		}
+		
+		//if done reading file AND sending it, then  quit loop
+		if actualBytesRead < MAXDATASIZE {
+			break
+		}
+		//increase blockNum for next portion of packet to be sent
+		blockNum = blockNum + uint16(1)
+	}
+}
+
+
+func SendToServer(pathToFile string){
 	ServerAddr,err := net.ResolveUDPAddr("udp","127.0.0.1:10001")
     CheckError(err)
  
@@ -30,17 +83,37 @@ func SendToServer(filepath string){
     defer Conn.Close()
     
     
-    msg,err := ioutil.ReadFile(filepath)
+    
     if err!=nil{
-		fmt.Println(filepath)
+		fmt.Println(pathToFile)
 		fmt.Println(err)
 	} else {
-		dataPacket := packet.NewDataPacket(uint16(1), []byte(msg))
+		//send write request
+		filename := filepath.Base(pathToFile)
+		writePacket := packet.NewWritePacket(filename)
+		_,err = Conn.Write(writePacket.ToBytes())
+		CheckError(err)
+		
+		p := make([]byte, 2048)
+		_, err = bufio.NewReader(Conn).Read(p)
+		CheckError(err)
+		retPacket := packet.ToPacket(p)
+		
+		switch resp := retPacket.(type) {
+			case packet.AckPacket:
+				fmt.Println("acknowledge packet for some blocknum:",resp.BlockNum)
+				//all is good. start sending data packets like normal
+				SendDataPacketsToServer(pathToFile,Conn)	
+			case packet.ErrorPacket:
+				fmt.Println("error packet with ErrMsg:",string(resp.ErrMsg))
+			default:
+				fmt.Println("returned packet for write request is erronous")
+		} 	
+
+		
+		
 			
-		_,err = Conn.Write(dataPacket.ToBytes())
-		if err != nil {
-			fmt.Println(msg, err)
-		}
+		
 	}   
 }
 
@@ -49,10 +122,10 @@ func SendToServer(filepath string){
 
 func main() {
 	flag.Parse()
-	if(*filepath == ""){
-		*filepath = flag.Arg(0)
+	if(*pathToFile == ""){
+		*pathToFile = flag.Arg(0)
 	}
 	
-	SendToServer(*filepath)
+	SendToServer(*pathToFile)
  
 }
