@@ -34,6 +34,7 @@ func SendDataPacketsToServer(pathToFile string, Conn *net.UDPConn){
 	//reader for reading file into buffer
 	reader := bufio.NewReader(f)
 	
+	tid := uint16(0)
 	//keep track of block num
 	blockNum := uint16(1)
 	for{
@@ -42,7 +43,7 @@ func SendDataPacketsToServer(pathToFile string, Conn *net.UDPConn){
 		CheckError(err)
 		
 		//store into data packet
-		dataPacket := packet.NewDataPacket(blockNum, buffer)
+		dataPacket := packet.NewDataPacket(blockNum, buffer, tid, uint16(69))
 		
 		//send data packet
 		_,err = Conn.Write(dataPacket.ToBytes())
@@ -89,8 +90,9 @@ func SendToServer(pathToFile string){
 		fmt.Println(err)
 	} else {
 		//send write request
+		tid := uint16(0)
 		filename := filepath.Base(pathToFile)
-		writePacket := packet.NewWritePacket(filename)
+		writePacket := packet.NewWritePacket(filename, tid, uint16(69))
 		_,err = Conn.Write(writePacket.ToBytes())
 		CheckError(err)
 		

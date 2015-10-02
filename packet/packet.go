@@ -2,6 +2,7 @@ package packet
 import (
 	"bytes"
 	"encoding/binary"
+	//"strconv"
 	//"fmt"
 )
 
@@ -13,13 +14,7 @@ const (
 	DATA = byte(3)
 	ACK = byte(4)
 	ERROR = byte(5)
-	
-	/*header types*/
-	LOCAL = iota
-	INTERNET
-	DATAGRAM
-	TFTP
-	
+		
 	
 	/*modes*/
 	NETASCII = "NETASCII"
@@ -45,8 +40,8 @@ func Init(){
 	
 /* how do headers look?
  * LOCAL: you choose. 
- * INTERNET: 
- * DATAGRAM:source port, dest port, length, checksum in order. 16 bits each.
+ * INTERNET: I think the datagram header and internet header are combined in udp packet design
+ * DATAGRAM: source port, dest port, length, checksum in order. 16 bits each. source/dest port's are tid's. 
  * TFTP: 2 byte opcode field which indicates type of packet
  */
 
@@ -54,10 +49,6 @@ func Init(){
 //type Fields map[string]string
 //headers map[int]Fields
 
-//todo:
-//1) init for all structs
-//2) ToBytes for all structs
-//3) fromBytes for all structs
 
 type Packet interface{
 	ToBytes() []byte
@@ -65,10 +56,18 @@ type Packet interface{
 
 type AbstractPacket struct{
 	PacketType byte
+	Source uint16
+	Dest uint16
+	//Length uint16
+	//Checksum uint16
 }
 func (p AbstractPacket) HeadersToBytes() []byte{
-	//todo: implement!
-	return []byte{}
+	var buffer bytes.Buffer
+	buffer.Write(unit16ToBytes(p.Source))
+	buffer.Write(unit16ToBytes(p.Dest))
+	//buffer.Write(unit16ToBytes(p.Length))
+	//buffer.Write(unit16ToBytes(p.Checksum))
+	return buffer.Bytes()
 }
 func (p AbstractPacket) ToBytes() []byte{
 	var buffer bytes.Buffer
@@ -83,8 +82,8 @@ type ReadPacket struct{
   FileName string
   Mode string
 }
-func NewReadPacket(filename string) ReadPacket {
-    return ReadPacket{AbstractPacket{RRQ}, filename, OCTECT}
+func NewReadPacket(filename string, source uint16, dest uint16) ReadPacket {
+    return ReadPacket{AbstractPacket{RRQ, source, dest}, filename, OCTECT}
 }
 func (p ReadPacket) ToBytes() []byte{
   var buffer bytes.Buffer
@@ -101,8 +100,8 @@ type WritePacket struct{
   FileName string
   Mode string
 }
-func NewWritePacket(filename string) WritePacket {
-    return WritePacket{AbstractPacket{WRQ}, filename, OCTECT}
+func NewWritePacket(filename string, source uint16, dest uint16) WritePacket {
+    return WritePacket{AbstractPacket{WRQ, source, dest}, filename, OCTECT}
 }
 func (p WritePacket) ToBytes() []byte{
   var buffer bytes.Buffer
@@ -119,15 +118,17 @@ type DataPacket struct{
   BlockNum uint16
   Data []byte 
 }
-func NewDataPacket(blockNum uint16, data []byte) DataPacket{
-	return DataPacket{AbstractPacket{DATA}, blockNum, data}
+func NewDataPacket(blockNum uint16, data []byte, source uint16, dest uint16) DataPacket{
+	/*Length : Number of bytes in UDP packet, including UDP header.*/
+	//length := uint16(0)
+	//temp := DataPacket{AbstractPacket{DATA, source, dest, length}, blockNum, data}
+	//length = len(temp.ToBytes())
+	return DataPacket{AbstractPacket{DATA, source, dest}, blockNum, data}
 }
 func (p DataPacket) ToBytes() []byte{
   var buffer bytes.Buffer
   buffer.Write(p.AbstractPacket.ToBytes())
-  blockNumAsTwoBytes := make([]byte, 2)
-  binary.BigEndian.PutUint16(blockNumAsTwoBytes, uint16(p.BlockNum))
-  buffer.Write(blockNumAsTwoBytes)
+  buffer.Write(unit16ToBytes(p.BlockNum))
   buffer.Write(p.Data)
   return buffer.Bytes()
 }
@@ -136,15 +137,13 @@ type AckPacket struct{
   AbstractPacket
   BlockNum uint16
 }
-func NewAckPacket(blockNum uint16) AckPacket{
-	return AckPacket{AbstractPacket{ACK}, blockNum}
+func NewAckPacket(blockNum uint16, source uint16, dest uint16) AckPacket{
+	return AckPacket{AbstractPacket{ACK, source, dest}, blockNum}
 }
 func (p AckPacket) ToBytes() []byte{
   var buffer bytes.Buffer
   buffer.Write(p.AbstractPacket.ToBytes())
-  blockNumAsTwoBytes := make([]byte, 2)
-  binary.BigEndian.PutUint16(blockNumAsTwoBytes, uint16(p.BlockNum))
-  buffer.Write(blockNumAsTwoBytes)
+  buffer.Write(unit16ToBytes(p.BlockNum))
   return buffer.Bytes()
 }
 
@@ -153,15 +152,13 @@ type ErrorPacket struct{
   ErrorCode uint16
   ErrMsg string
 }
-func NewErrorPacket(errCode uint16, errMsg string) ErrorPacket{
-	return ErrorPacket{AbstractPacket{ERROR}, errCode, errMsg}
+func NewErrorPacket(errCode uint16, errMsg string, source uint16, dest uint16) ErrorPacket{
+	return ErrorPacket{AbstractPacket{ERROR, source, dest}, errCode, errMsg}
 }
 func (p ErrorPacket) ToBytes() []byte{
   var buffer bytes.Buffer
   buffer.Write(p.AbstractPacket.ToBytes())
-  errorCodeAsTwoBytes := make([]byte, 2)
-  binary.BigEndian.PutUint16(errorCodeAsTwoBytes, uint16(p.ErrorCode))
-  buffer.Write(errorCodeAsTwoBytes)
+  buffer.Write(unit16ToBytes(p.ErrorCode))
   buffer.WriteString(p.ErrMsg)
   buffer.WriteByte(byte(0))
   return buffer.Bytes()
@@ -172,27 +169,12 @@ func (p ErrorPacket) ToBytes() []byte{
 
 
 
-//func fieldsToBytes(f* Fields)[]byte{
-	//var buffer bytes.Buffer
-	
-	//for k,v := range f {
-		
-	//}
-	//return out
-//}
+func unit16ToBytes(u uint16) []byte{
+	arr := make([]byte, 2)
+    binary.BigEndian.PutUint16(arr, u)
+    return arr
+}
 
-//func headersToString(map[int]Fields) []byte{
-	//var buffer bytes.Buffer
-	
-	//if fields, ok := p.headers[LOCAL]; ok {
-		//buffer.WriteString(fieldsToString(fields))
-	//}
-	
-	//buffer.WriteString(fieldsToString(p.headers[INTERNET]))
-	//buffer.WriteString(fieldsToString(p.headers[DATAGRAM]))
-	//buffer.WriteString(fieldsToString(p.headers[TFTP]))
-	
-	////if packetType == RRQ || packetType == WRQ {
-		////buffer.WriteString(packetType,filename, byte(0), mode, byte(0))
-	////}
-//}
+func bytesToUint16(in []byte) uint16{
+	return binary.LittleEndian.Uint16(in)
+}
