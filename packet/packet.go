@@ -56,22 +56,9 @@ type Packet interface{
 
 type AbstractPacket struct{
 	PacketType byte
-	Source uint16
-	Dest uint16
-	//Length uint16
-	//Checksum uint16
-}
-func (p AbstractPacket) HeadersToBytes() []byte{
-	var buffer bytes.Buffer
-	buffer.Write(unit16ToBytes(p.Source))
-	buffer.Write(unit16ToBytes(p.Dest))
-	//buffer.Write(unit16ToBytes(p.Length))
-	//buffer.Write(unit16ToBytes(p.Checksum))
-	return buffer.Bytes()
 }
 func (p AbstractPacket) ToBytes() []byte{
 	var buffer bytes.Buffer
-	buffer.Write(p.HeadersToBytes())
 	buffer.Write([]byte{0,p.PacketType})
 	return buffer.Bytes()
 }
@@ -82,8 +69,8 @@ type ReadPacket struct{
   FileName string
   Mode string
 }
-func NewReadPacket(filename string, source uint16, dest uint16) ReadPacket {
-    return ReadPacket{AbstractPacket{RRQ, source, dest}, filename, OCTECT}
+func NewReadPacket(filename string) ReadPacket {
+    return ReadPacket{AbstractPacket{RRQ}, filename, OCTECT}
 }
 func (p ReadPacket) ToBytes() []byte{
   var buffer bytes.Buffer
@@ -100,8 +87,8 @@ type WritePacket struct{
   FileName string
   Mode string
 }
-func NewWritePacket(filename string, source uint16, dest uint16) WritePacket {
-    return WritePacket{AbstractPacket{WRQ, source, dest}, filename, OCTECT}
+func NewWritePacket(filename string) WritePacket {
+    return WritePacket{AbstractPacket{WRQ}, filename, OCTECT}
 }
 func (p WritePacket) ToBytes() []byte{
   var buffer bytes.Buffer
@@ -118,12 +105,12 @@ type DataPacket struct{
   BlockNum uint16
   Data []byte 
 }
-func NewDataPacket(blockNum uint16, data []byte, source uint16, dest uint16) DataPacket{
+func NewDataPacket(blockNum uint16, data []byte) DataPacket{
 	/*Length : Number of bytes in UDP packet, including UDP header.*/
 	//length := uint16(0)
 	//temp := DataPacket{AbstractPacket{DATA, source, dest, length}, blockNum, data}
 	//length = len(temp.ToBytes())
-	return DataPacket{AbstractPacket{DATA, source, dest}, blockNum, data}
+	return DataPacket{AbstractPacket{DATA}, blockNum, data}
 }
 func (p DataPacket) ToBytes() []byte{
   var buffer bytes.Buffer
@@ -137,8 +124,8 @@ type AckPacket struct{
   AbstractPacket
   BlockNum uint16
 }
-func NewAckPacket(blockNum uint16, source uint16, dest uint16) AckPacket{
-	return AckPacket{AbstractPacket{ACK, source, dest}, blockNum}
+func NewAckPacket(blockNum uint16) AckPacket{
+	return AckPacket{AbstractPacket{ACK}, blockNum}
 }
 func (p AckPacket) ToBytes() []byte{
   var buffer bytes.Buffer
@@ -152,8 +139,8 @@ type ErrorPacket struct{
   ErrorCode uint16
   ErrMsg string
 }
-func NewErrorPacket(errCode uint16, errMsg string, source uint16, dest uint16) ErrorPacket{
-	return ErrorPacket{AbstractPacket{ERROR, source, dest}, errCode, errMsg}
+func NewErrorPacket(errCode uint16, errMsg string) ErrorPacket{
+	return ErrorPacket{AbstractPacket{ERROR}, errCode, errMsg}
 }
 func (p ErrorPacket) ToBytes() []byte{
   var buffer bytes.Buffer

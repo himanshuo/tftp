@@ -8,32 +8,7 @@ import (
     "math/rand"
 )
 const MAXDATASIZE = 512
-type File struct {
-	filename string
-	data []byte
-	checksum string
-	length int
-}
-var storage map[string]File // filename -> File
-var inProcess map[uint16]File // recieved tid -> File
 
-/*
- * to deduplicate:
- * 
- *  File: filename, checksum, length, []512 data byte pointers in proper order
- *  Storage: hash_of_512_byte -> 512 byte
- * 
- *  to add a new file to storage, take a hash of each of its 512 byte portions.
- *  for each hash, check if it exists in storage
- * 		if hash in storage: do nothing.
- * 		if hash not in storage: add hash->512bytes into storage 
- *  
- *  to get file from storage:
- *  totalFile = []byte
- *  for hash in File.512bytepointers:
- *  	totalFile = append(totalFile, Storage[hash])
- *  
- */
 
 /* A Simple function to verify error */
 func CheckError(err error) {
@@ -157,14 +132,17 @@ func startReadProcess(p packet.ReadPacket, conn *net.UDPConn, addr *net.UDPAddr)
 }
 
 
+const PORT int = 10001 
 func serve(){
 	//initialize storage and inProcess
 	storage = map[string]File{}
 	inProcess = map[uint16]File{}
 	
 	
-	/* Lets prepare a address at any address at port 10001*/   
-    ServerAddr,err := net.ResolveUDPAddr("udp",":69")
+	/* Lets prepare a address at any address at port 10001*/
+	port := fmt.Sprintf(":%d", PORT)   
+	fmt.Println(port)
+    ServerAddr,err := net.ResolveUDPAddr("udp",port)
     fmt.Println(ServerAddr.String())
     CheckError(err)
  

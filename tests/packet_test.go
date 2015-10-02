@@ -50,7 +50,7 @@ func nullTerminatedStringFromBytes(in []byte) string{
 
 //test ReadPacket conversion to bytes
 var testReadPacket = []struct{
-	packetVersion *packet.ReadPacket
+	packetVersion packet.ReadPacket
 	bitVersion []byte
 	err bool
 }{
@@ -84,7 +84,7 @@ func TestBytesToReadPacket(t *testing.T){
 
 //test WritePacket conversion to bytes
 var testWritePacket = []struct{
-	packetVersion *packet.WritePacket
+	packetVersion packet.WritePacket
 	bitVersion []byte
 	err bool
 }{
@@ -119,7 +119,7 @@ func TestBytesToWritePacket(t *testing.T){
 
 //test DataPacket conversion to bytes
 var testDataPacket = []struct{
-	packetVersion *packet.DataPacket
+	packetVersion packet.DataPacket
 	bitVersion []byte
 	err bool
 }{
@@ -159,7 +159,7 @@ func TestBytesToDataPacket(t *testing.T){
 
 //test AckPacket conversion to bytes
 var testAckPacket = []struct{
-	packetVersion *packet.AckPacket
+	packetVersion packet.AckPacket
 	bitVersion []byte
 	err bool
 }{
@@ -199,7 +199,7 @@ func TestBytesToAckPacket(t *testing.T){
 
 //test ErrorPacket conversion to bytes
 var testErrorPacket = []struct{
-	packetVersion *packet.ErrorPacket
+	packetVersion packet.ErrorPacket
 	bitVersion []byte
 	err bool
 }{
@@ -242,41 +242,6 @@ func TestBytesToErrorPacket(t *testing.T){
 		}	
 	}
 }
-
-
-
-
-
-
-//var testFieldsToBytes = []struct{
-	//in tftp.Fields
-	//expected []byte
-//}{
-	////simple
-	//{
-		//Fields{
-			//"a":"a",
-			//"f2":"f2"
-		//},
-		//[]byte{"a","f2"} 
-		
-	//}
-	
-//}
-
-
-//var testToBytes = []struct {
-	//packetType  int
-	//headers map[int]Fields
-	//payload map[string][]byte 
-	//option bool
-	//ok  bool
-//}{  
-//}
-
-
-
-
 
 
 
