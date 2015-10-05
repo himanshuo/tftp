@@ -25,7 +25,7 @@ const (
 
 var ErrorCodes map[uint16]string
 
-func Init(){
+func init(){
 	ErrorCodes = map[uint16]string{
 		uint16(0) : "Not defined, see error message (if any).",
 		uint16(1) : "File not found.",

@@ -56,7 +56,11 @@ func NewReadTransport(p packet.ReadPacket, clientAddr *net.UDPAddr) Transport{
     ServerConn, err := net.ListenUDP("udp", ServerAddr)
     CheckError(err)
 
-	file := storage_engine.Get(p.FileName)
+	file,err := storage_engine.Get(p.FileName)
+    if err != nil{
+		SendErrorPacket(uint16(1), ServerConn, clientAddr)
+	}
+	fmt.Println("file to retrieve has bytes:",len(file.Data))
     return ReadTransport{
 		AbstractTransport{
 			file: file, 
@@ -197,9 +201,14 @@ func (t *ReadTransport) sendDataPacket() bool{
 	return done
 }
 
-//func (t Transport) sendErrorPacket()
+
+
 func (t *WriteTransport) storeFile(){
 	//when transport is done, we store the data into our storageEngine
 	storage_engine.Put(t.file)
 }
 
+func SendErrorPacket(errNum uint16, conn *net.UDPConn, clientAddr *net.UDPAddr){
+	errorPacket:= packet.NewErrorPacket(errNum, packet.ErrorCodes[errNum])
+	conn.WriteToUDP(errorPacket.ToBytes(), clientAddr)
+}

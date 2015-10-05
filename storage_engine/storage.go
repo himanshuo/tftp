@@ -2,6 +2,7 @@ package storage_engine
 import (
 	"crypto/md5"
 	"fmt"
+	"errors"
 	
 )
 
@@ -71,15 +72,15 @@ func Put(f File){
 	}
 }
 
-func Get(filename string) File {
-	if blocks_ids, ok := storage.mapper[filename]; ok {
-		f := File{filename, make([]byte,0), }
+func Get(filename string) (File,error) {
+	f := File{filename, make([]byte,0), }
+	if blocks_ids, ok := storage.mapper[filename]; ok {	
 		for _,block_id := range blocks_ids{
 			f.Data = append(f.Data, storage.blocks[block_id]...)
 		}
-		return f
+		return f, nil
 	} else{
-		panic(fmt.Sprintf("%s not in storage", filename))
+		return f, errors.New(fmt.Sprintf("%s not in storage", filename))
 	}
 }
 
