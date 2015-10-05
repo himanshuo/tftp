@@ -2,6 +2,7 @@ package storage_engine
 import (
 	"crypto/md5"
 	"fmt"
+	
 )
 
 const BLOCKSIZE int = 512
@@ -22,7 +23,8 @@ const BLOCKSIZE int = 512
  *  	totalFile = append(totalFile, Storage[hash])
  *  
  */
- 
+
+
 type File struct {
 	Filename string
 	Data []byte
@@ -33,14 +35,23 @@ type Storage struct{
 	mapper map[string][]string // filename -> list of checksum_strings to represent block_ids
 }
 
-func NewStorage() *Storage{
+/*singleton design pattern in order to make sure we only use 1 Storage Engine */
+var storage Storage
+
+func init(){
+	fmt.Println("creating new storage instance")
 	a := map[string][]byte{}
 	b := map[string][]string{}
-	return &Storage{a,b}
+	storage = Storage{a,b}
 }
 
-func (s Storage) Add(f File){
-	s.mapper[f.Filename] = make([]string,0)
+//func StorageInstance() *Storage{
+	//fmt.Println("giving you already created storage instance")
+	//return &storage
+//}
+
+func Put(f File){
+	storage.mapper[f.Filename] = make([]string,0)
 	for i:=0; i<len(f.Data); i += BLOCKSIZE{
 		
 		var curBlock []byte
@@ -53,18 +64,18 @@ func (s Storage) Add(f File){
 		
 		b := md5.Sum(curBlock)
 		curBlockId := string(b[:])
-		if _, ok := s.blocks[curBlockId]; !ok {
-			s.blocks[curBlockId] = curBlock
+		if _, ok := storage.blocks[curBlockId]; !ok {
+			storage.blocks[curBlockId] = curBlock
 		}
-		s.mapper[f.Filename] = append(s.mapper[f.Filename], curBlockId) 
+		storage.mapper[f.Filename] = append(storage.mapper[f.Filename], curBlockId) 
 	}
 }
 
-func (s Storage) Get(filename string) File {
-	if blocks_ids, ok := s.mapper[filename]; ok {
+func Get(filename string) File {
+	if blocks_ids, ok := storage.mapper[filename]; ok {
 		f := File{filename, make([]byte,0), }
 		for _,block_id := range blocks_ids{
-			f.Data = append(f.Data, s.blocks[block_id]...)
+			f.Data = append(f.Data, storage.blocks[block_id]...)
 		}
 		return f
 	} else{
@@ -72,6 +83,13 @@ func (s Storage) Get(filename string) File {
 	}
 }
 
-func (s Storage) NumBlocks() int{
-	return len(s.blocks)
+func NumBlocks() int{
+	return len(storage.blocks)
+}
+
+func Reset() {
+	fmt.Println("resetting storage")
+	a := map[string][]byte{}
+	b := map[string][]string{}
+	storage = Storage{a,b}
 }
