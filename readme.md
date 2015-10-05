@@ -22,11 +22,11 @@ This is a golang implementation of the TFTP protocol. This repo currently suppor
 
 
 <h1>How to run server</h1>
-go to tftp repo and run:<\n>
+go to tftp repo and run:  
 go run ./tftp_server/server.go
 
 
 <h1>How to run tests</h1>
-go to tftp repo and run:<\n>
+go to tftp repo and run:  
 go test ./tests/
 
